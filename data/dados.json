@@ -1,8 +1,133 @@
 [ {
   "tipo" : "exercicio",
+  "nome" : "musculacao",
+  "quantidade" : 180.0,
+  "kcal" : 1493.1,
+  "peso" : 79.0,
+  "data" : "2025-06-01"
+}, {
+  "tipo" : "exercicio",
+  "nome" : "musculacao",
+  "quantidade" : 180.0,
+  "kcal" : 1493.1,
+  "peso" : 79.0,
+  "data" : "2025-06-01"
+}, {
+  "tipo" : "exercicio",
+  "nome" : "musculacao",
+  "quantidade" : 120.0,
+  "kcal" : 1327.2,
+  "peso" : 79.0,
+  "data" : "2025-05-31"
+}, {
+  "tipo" : "exercicio",
+  "nome" : "musculacao",
+  "quantidade" : 180.0,
+  "kcal" : 1990.8000000000002,
+  "peso" : 79.0,
+  "data" : "2025-05-31"
+}, {
+  "tipo" : "exercicio",
+  "nome" : "musculacao",
+  "quantidade" : 120.0,
+  "kcal" : 995.4,
+  "peso" : 79.0,
+  "data" : "2025-05-30"
+}, {
+  "tipo" : "exercicio",
+  "nome" : "musculacao",
+  "quantidade" : 120.0,
+  "kcal" : 995.4,
+  "peso" : 79.0,
+  "data" : "2025-05-30"
+}, {
+  "tipo" : "exercicio",
+  "nome" : "musculacao",
+  "quantidade" : 120.0,
+  "kcal" : 1659.0,
+  "peso" : 79.0,
+  "data" : "2025-05-28"
+}, {
+  "tipo" : "exercicio",
   "nome" : "caminhada",
   "quantidade" : 60.0,
+  "kcal" : 484.6,
   "peso" : 79.0,
-  "kcal" : 663.6,
-  "data" : "2025-05-22"
+  "data" : "2025-05-27"
+}, {
+  "tipo" : "alimento",
+  "nome" : "arroz",
+  "quantidade" : 200.0,
+  "kcal" : 260.0,
+  "data" : "2025-05-27"
+}, {
+  "tipo" : "alimento",
+  "nome" : "Feijao",
+  "quantidade" : 200.0,
+  "kcal" : 220.0,
+  "data" : "2025-05-27"
+}, {
+  "tipo" : "alimento",
+  "nome" : "Peito de Frango",
+  "quantidade" : 150.0,
+  "kcal" : 247.5,
+  "data" : "2025-05-28"
+}, {
+  "tipo" : "exercicio",
+  "nome" : "corrida leve",
+  "quantidade" : 30.0,
+  "kcal" : 331.8,
+  "peso" : 79.0,
+  "data" : "2025-05-26"
+}, {
+  "tipo" : "alimento",
+  "nome" : "Maca",
+  "quantidade" : 150.0,
+  "kcal" : 78.0,
+  "data" : "2025-05-28"
+}, {
+  "tipo" : "alimento",
+  "nome" : "Banana",
+  "quantidade" : 120.0,
+  "kcal" : 107.0,
+  "data" : "2025-05-29"
+}, {
+  "tipo" : "exercicio",
+  "nome" : "natacao crawl",
+  "quantidade" : 45.0,
+  "kcal" : 435.5,
+  "peso" : 79.0,
+  "data" : "2025-05-29"
+}, {
+  "tipo" : "alimento",
+  "nome" : "Ovo",
+  "quantidade" : 100.0,
+  "kcal" : 155.0,
+  "data" : "2025-05-26"
+}, {
+  "tipo" : "exercicio",
+  "nome" : "yoga",
+  "quantidade" : 60.0,
+  "kcal" : 207.4,
+  "peso" : 79.0,
+  "data" : "2025-05-26"
+}, {
+  "tipo" : "alimento",
+  "nome" : "Pao",
+  "quantidade" : 50.0,
+  "kcal" : 130.0,
+  "data" : "2025-05-27"
+}, {
+  "tipo" : "exercicio",
+  "nome" : "bicicleta",
+  "quantidade" : 40.0,
+  "kcal" : 414.8,
+  "peso" : 79.0,
+  "data" : "2025-05-28"
+}, {
+  "tipo" : "alimento",
+  "nome" : "Leite",
+  "quantidade" : 200.0,
+  "kcal" : 90.0,
+  "data" : "2025-05-29"
 } ]

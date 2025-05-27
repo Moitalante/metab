@@ -1,1 +1,1 @@
-["^ ","~$-main",["^ ","~:row",6,"~:col",1,"~:fixed-arities",["~#set",[0]],"~:name","^0","~:ns","~$metab.core","~:top-ns","^7","~:type","~:fn"],"~:filename","C:\\Users\\Carlo\\metab\\src\\metab\\core.clj"]
+["^ ","~$final-app",["^ ","~:row",6,"~:col",1,"~:name","^0","~:ns","~$metab.core","~:top-ns","^5"],"~$-main",["^ ","^1",10,"^2",1,"~:fixed-arities",["~#set",[0]],"^3","^7","^4","^5","^6","^5","~:type","~:fn"],"~:filename","C:\\Users\\Carlo\\metab\\src\\metab\\core.clj"]

@@ -5,7 +5,8 @@
                  [compojure "1.6.2"]
                  [hiccup "1.0.5"]
                  [clj-http "3.12.3"]
-                 [cheshire "5.11.0"]]
+                 [cheshire "5.11.0"]
+                 [ring/ring-defaults "0.4.0"]] 
   :main metab.core
   :plugins [[lein-ring "0.12.5"]]
-  :ring {:handler metab.handler/app})
+  :ring {:handler metab.core/final-app})
