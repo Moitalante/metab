@@ -1,84 +1,54 @@
-;; src/metab/db.clj
 (ns metab.db
-  (:require [cheshire.core :as json]
-            [clojure.java.io :as io]
+  (:require [clojure.string :as str]
             [clojure.tools.logging :as log]))
 
-(def db-dir-path "data")
-(def user-db-path (str db-dir-path "/usuario.json"))
-(def alimentos-db-path (str db-dir-path "/alimentos.json"))
-(def exercicios-db-path (str db-dir-path "/exercicios.json"))
+;; --- O ESTADO DA APLICAÇÃO AGORA VIVE NESTE ATOM ---
+(def banco-de-dados
+  (atom {;; Valores numéricos começam como nil
+         :usuario {:nome "" :peso nil :altura nil :idade nil :sexo "Nao informado"}
+         :alimentos []
+         :exercicios []}))
 
-(defn- garantir-diretorio-db! []
-  (let [db-dir (io/file db-dir-path)]
-    (when-not (.exists db-dir)
-      (try
-        (.mkdirs db-dir)
-        (log/info (str "Diretorio '" db-dir-path "' criado."))
-        (catch Exception e
-          (log/error e (str "Falha ao criar diretorio '" db-dir-path "'.")))))))
+;; Reinicia o banco de dados para o estado inicial (útil para testes)
+(defn resetar-banco! []
+  (reset! banco-de-dados {:usuario {:nome "" :peso nil :altura nil :idade nil :sexo "Nao informado"}
+                          :alimentos []
+                          :exercicios []}))
 
-(defn- ler-lista-do-arquivo [path-arquivo]
-  (garantir-diretorio-db!)
-  (let [f (io/file path-arquivo)]
-    (if (and (.exists f) (> (.length f) 0))
-      (try
-        (json/parse-string (slurp f) true)
-        (catch Exception e
-          (log/error e (str "ERRO ao ler/parsear " path-arquivo "."))
-          []))
-      [])))
-
-(defn- salvar-lista-no-arquivo [path-arquivo dados-lista]
-  (garantir-diretorio-db!)
-  (try
-    (io/make-parents path-arquivo)
-    (spit path-arquivo (json/generate-string dados-lista {:pretty true}))
-    true ; Indica sucesso
-    (catch Exception e
-      (log/error e (str "AVISO: Falha ao salvar o arquivo " path-arquivo "."))
-      false))) ; Indica falha
-
-;; --- Funções para Usuário ---
+;; --- Funções para Usuário (interagem com o atom) ---
 (defn carregar-usuario []
-  (let [f (io/file user-db-path)
-        defaults {:nome "" :peso 70.0 :altura 170.0}]
-    (if (and (.exists f) (> (.length f) 0))
-      (try
-        (json/parse-string (slurp f) true)
-        (catch Exception e
-          (log/error e "ERRO ao ler/parsear usuario.json.")
-          defaults))
-      defaults)))
+  (:usuario @banco-de-dados))
 
 (defn salvar-usuario [usuario-data]
-  (salvar-lista-no-arquivo user-db-path usuario-data))
+  (swap! banco-de-dados assoc :usuario usuario-data)
+  (log/info "Usuario salvo:" usuario-data)
+  usuario-data)
 
 ;; --- Funções para Alimentos ---
-(defn ler-alimentos [] (ler-lista-do-arquivo alimentos-db-path))
-(defn salvar-alimentos [alimentos] (salvar-lista-no-arquivo alimentos-db-path alimentos))
+(defn ler-alimentos []
+  (:alimentos @banco-de-dados))
 
 (defn adicionar-alimento
-  "Espera um mapa com :nome_pt, :quantidade_g, :kcal_consumidas, :data"
+  "Adiciona um alimento ao estado. Espera um mapa com os dados do alimento."
   [alimento-map]
-  (let [alimentos-atuais (ler-alimentos)
-        alimento-com-id (assoc alimento-map :id (System/currentTimeMillis))]
-    (when (salvar-alimentos (conj alimentos-atuais alimento-com-id))
-      alimento-com-id))) ; Retorna o alimento salvo com ID se o salvamento for bem-sucedido
+  (let [alimento-com-id (assoc alimento-map :id (System/currentTimeMillis))]
+    (swap! banco-de-dados update :alimentos conj alimento-com-id)
+    (log/info "Alimento adicionado:" alimento-com-id)
+    alimento-com-id))
 
 ;; --- Funções para Exercícios ---
-(defn ler-exercicios [] (ler-lista-do-arquivo exercicios-db-path))
-(defn salvar-exercicios [exercicios] (salvar-lista-no-arquivo exercicios-db-path exercicios))
+(defn ler-exercicios []
+  (:exercicios @banco-de-dados))
 
 (defn adicionar-exercicio
-  "Espera um mapa com :nome_pt, :duracao_min, :peso_kg, :kcal_gastas, :data, opcionalmente :met_usado, :nome_en_api"
+  "Adiciona um exercício ao estado. Espera um mapa com os dados do exercício."
   [exercicio-map]
-  (let [exercicios-atuais (ler-exercicios)
-        exercicio-com-id (assoc exercicio-map :id (System/currentTimeMillis))]
-    (when (salvar-exercicios (conj exercicios-atuais exercicio-com-id))
-      exercicio-com-id))) ; Retorna o exercício salvo com ID
+  (let [exercicio-com-id (assoc exercicio-map :id (System/currentTimeMillis))]
+    (swap! banco-de-dados update :exercicios conj exercicio-com-id)
+    (log/info "Exercicio adicionado:" exercicio-com-id)
+    exercicio-com-id))
 
-;; --- Função de Resumo ATUALIZADA ---
+;; --- Função de Resumo (lê do atom) ---
 (defn calcular-resumo [dias]
   (let [alimentos (ler-alimentos)
         exercicios (ler-exercicios)
@@ -93,6 +63,7 @@
 
         kcal-consumidas (->> alimentos-filtrados (map :kcal_consumidas) (reduce + 0.0))
         kcal-gastas     (->> exercicios-filtrados (map :kcal_gastas) (reduce + 0.0))]
+    (log/info "Calculando resumo para os ultimos" num-dias "dias de atividade.")
     {:kcal-consumidas kcal-consumidas
      :kcal-gastas kcal-gastas
      :diferenca (- kcal-consumidas kcal-gastas)}))

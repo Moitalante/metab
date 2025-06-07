@@ -1,9 +1,8 @@
-;; src/metab/translations.clj
 (ns metab.translations
   (:require [clj-http.client :as client]
             [cheshire.core :as json]
             [clojure.string :as str]
-            [clojure.tools.logging :as log])) ; Adicionado para logging
+            [clojure.tools.logging :as log]))
 
 (def ^:private mymemory-api-url "https://api.mymemory.translated.net/get")
 
@@ -17,18 +16,13 @@
         {:erro "Texto para traducao nao pode ser vazio."})
     (try
       (let [langpair (str lang-de "|" lang-para)
-            ;; Adicionando um email no parâmetro 'de' pode aumentar os limites da MyMemory
-            ;; Pode ser um email genérico ou o do usuário da aplicação se você tiver.
-            ; de-param "seu-email-para-mymemory@example.com" 
             response (client/get mymemory-api-url
                                  {:query-params {"q" texto
-                                                 "langpair" langpair
-                                                 ;; "de" de-param ; Descomente se quiser usar um email
-                                                 }
+                                                 "langpair" langpair}
                                   :throw-exceptions false
                                   :as :json
-                                  :conn-timeout 8000  ; Aumentado
-                                  :socket-timeout 15000}) ; Aumentado
+                                  :conn-timeout 8000
+                                  :socket-timeout 15000})
             status (:status response)
             body (:body response)]
         (log/debug "TRADUCAO: Resposta da API MyMemory Status:" status "Body:" body)

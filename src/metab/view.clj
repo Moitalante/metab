@@ -8,8 +8,11 @@
     [:meta {:charset "UTF-8"}]
     [:script
      "function togglePesoField() {
-         var tipo = document.getElementById('tipo').value;
+         var tipoSelect = document.getElementById('tipo');
+         if (!tipoSelect) return; // Evita erro em páginas sem o seletor
+         var tipo = tipoSelect.value;
          var pesoField = document.getElementById('peso-field');
+         if (!pesoField) return;
          if (tipo === 'exercicio') {
            pesoField.style.display = 'block';
          } else {
@@ -17,6 +20,7 @@
          }
        }
        window.onload = function() {
+           // Verifica se a função existe antes de chamar
            if (typeof togglePesoField === 'function') {
                togglePesoField();
            }
@@ -32,7 +36,7 @@
     [:nav
      [:a {:href "/"} "Registrar"]
      [:a {:href "/usuario"} "Usuario"]
-     [:a {:href "/resumo/7"} "Resumo (7 dias)"]] ; <-- Link de exemplo do intervalo removido
+     [:a {:href "/resumo/7"} "Resumo (7 dias)"]]
     [:hr]
     [:h1 title]
     content]))
@@ -56,8 +60,8 @@
            [:input {:type "number" :id "quantidade" :name "quantidade" :step "any" :required true}] [:br]
 
            [:div {:id "peso-field" :style "display:none;"}
-            [:label {:for "peso"} "Peso (kg):"] [:br]
-            [:input {:type "number" :id "peso" :name "peso" :step "any" :value (:peso usuario 70.0)}] [:br]]
+            [:label {:for "peso"} "Peso (kg) (opcional se ja cadastrado):"] [:br]
+            [:input {:type "number" :id "peso" :name "peso" :step "any" :placeholder (:peso usuario "Nao definido")}] [:br]]
 
            [:button {:type "submit"} "Enviar"]]))
 
@@ -74,11 +78,20 @@
            [:label {:for "altura"} "Altura (cm):"] [:br]
            [:input {:type "number" :id "altura" :name "altura" :step "any" :value (:altura usuario)}] [:br]
 
+           [:label {:for "idade"} "Idade:"] [:br]
+           [:input {:type "number" :id "idade" :name "idade" :value (:idade usuario)}] [:br]
+
+           [:label {:for "sexo"} "Sexo Biologico:"] [:br]
+           [:select {:id "sexo" :name "sexo"}
+            [:option {:value "Feminino" :selected (= "Feminino" (:sexo usuario))} "Feminino"]
+            [:option {:value "Masculino" :selected (= "Masculino" (:sexo usuario))} "Masculino"]
+            [:option {:value "Nao informado" :selected (not (#{"Feminino" "Masculino"} (:sexo usuario)))} "Nao informado"]]
+           [:br]
+
            [:button {:type "submit"} "Salvar"]]))
 
-;; --- PÁGINA DE RESUMO REVERTIDA ---
 (defn pagina-resumo [resumo]
-  (layout "Resumo (Ultimos dias)" ; Título mais genérico
+  (layout "Resumo (Ultimos dias)"
           [:div.summary
            [:p (str "Kcal consumidas: " (format "%.1f" (:kcal-consumidas resumo)))]
            [:p (str "Kcal gastas: " (format "%.1f" (:kcal-gastas resumo)))]

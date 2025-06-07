@@ -1,4 +1,3 @@
-;; src/metab/handler.clj
 (ns metab.handler
   (:require [compojure.core :refer [defroutes GET POST]]
             [compojure.route :as route]
@@ -6,7 +5,7 @@
             [clojure.string :as str]
             [metab.view :as view]
             [metab.db :as db]
-            [metab.exercise :as exercise] ; Mudou de metab.met
+            [metab.exercise :as exercise]
             [metab.food :as food]
             [clojure.tools.logging :as log]))
 
@@ -20,8 +19,15 @@
    :headers {"Content-Type" "text/html; charset=utf-8"}
    :body (view/pagina-de-erro mensagem)})
 
-(defn- parse-float [s default-value]
-  (try (Float/parseFloat (str/trim (str s))) (catch Exception _ default-value)))
+(defn- parse-float [s]
+  (let [s-clean (str/trim (str s))]
+    (when-not (str/blank? s-clean)
+      (try (Float/parseFloat s-clean) (catch NumberFormatException _ nil)))))
+
+(defn- parse-int [s]
+  (let [s-clean (str/trim (str s))]
+    (when-not (str/blank? s-clean)
+      (try (Integer/parseInt s-clean) (catch NumberFormatException _ nil)))))
 
 (defroutes app
   (GET "/" []
@@ -37,13 +43,14 @@
 
   (POST "/usuario" {params :params}
     (log/info "HANDLER: Recebido POST /usuario com params:" params)
-    (let [{:keys [nome peso altura]} params
+    (let [{:keys [nome peso altura idade sexo]} params
           usuario-data {:nome   (str/trim (str nome))
-                        :peso   (parse-float peso 70.0)
-                        :altura (parse-float altura 170.0)}]
-      (if (db/salvar-usuario usuario-data)
-        (redirect "/usuario")
-        (pagina-erro "Nao foi possivel salvar dados do usuario." 500))))
+                        :peso   (parse-float peso)
+                        :altura (parse-int altura)
+                        :idade  (parse-int idade)
+                        :sexo   (or sexo "Nao informado")}]
+      (db/salvar-usuario usuario-data)
+      (redirect "/usuario")))
 
   (POST "/adicionar" {params :params}
     (log/info "HANDLER: Recebido POST /adicionar com params:" params)
@@ -53,37 +60,36 @@
       (if (or (str/blank? (str data)) (str/blank? (str tipo)) (str/blank? (str nome)) (str/blank? (str quantidade)))
         (pagina-erro "Data, Tipo, Nome e Quantidade sao obrigatorios." 400)
         (try
-          (let [qtd (parse-float quantidade 0.0)
+          (let [qtd (parse-float quantidade)
                 tipo-str (name tipo)
                 nome-str (str/trim (str nome))
-                data-str (str data)] ; Garantir que data é string
+                data-str (str data)]
 
-            (log/info "HANDLER: Adicionando" tipo-str ":" nome-str "Qtd:" qtd "Data:" data-str)
+            (if (or (nil? qtd) (not (pos? qtd)))
+              (pagina-erro "A quantidade deve ser um numero positivo." 400)
 
-            (cond
-              (= tipo-str "alimento")
-              (let [alimento-info-api (food/buscar-info-alimento-nutritionix nome-str qtd)]
-                (if (:erro alimento-info-api)
-                  (pagina-erro (str "Erro ao buscar info do alimento: " (:erro alimento-info-api)) 400)
-                  (let [alimento-para-db (assoc alimento-info-api :data data-str)]
-                    (if (db/adicionar-alimento alimento-para-db)
-                      (redirect "/")
-                      (pagina-erro "Nao foi possivel salvar o alimento." 500)))))
+              (cond
+                (= tipo-str "alimento")
+                (let [alimento-info (food/buscar-info-alimento-nutritionix nome-str qtd)]
+                  (if (:erro alimento-info)
+                    (pagina-erro (str "Erro ao buscar info do alimento: " (:erro alimento-info)) 400)
+                    (let [alimento-para-db (assoc alimento-info :data data-str)]
+                      (if (db/adicionar-alimento alimento-para-db)
+                        (redirect "/")
+                        (pagina-erro "Nao foi possivel salvar o alimento no DB." 500)))))
 
-              (= tipo-str "exercicio")
-              (let [peso-final (parse-float peso (:peso usuario 78.0))
-                    exercicio-info-api (exercise/logar-exercicio-e-calcular-kcal nome-str qtd peso-final data-str)]
-                (if (:erro exercicio-info-api)
-                  (pagina-erro (str "Erro ao logar exercicio: " (:erro exercicio-info-api)) 400)
-                  (do
-                    ;; logar-exercicio-e-calcular-kcal já retorna o mapa formatado para o db
-                    ;; e db/adicionar-exercicio foi chamado dentro dele no "Projeto API"
-                    ;; Agora, logar-exercicio-e-calcular-kcal retorna o mapa, e nós adicionamos ao DB
-                    (if (db/adicionar-exercicio exercicio-info-api)
-                      (redirect "/")
-                      (pagina-erro "Nao foi possivel salvar o exercicio." 500)))))
-              :else
-              (pagina-erro "Tipo de registro desconhecido." 400)))
+                (= tipo-str "exercicio")
+                (let [peso-final (or (parse-float peso) (:peso usuario))]
+                  (if (nil? peso-final)
+                    (pagina-erro "Peso do usuario nao definido. Por favor, cadastre seu peso no Perfil." 400)
+                    (let [exercicio-info (exercise/logar-exercicio-e-calcular-kcal nome-str qtd peso-final data-str)]
+                      (if (:erro exercicio-info)
+                        (pagina-erro (str "Erro ao logar exercicio: " (:erro exercicio-info)) 400)
+                        (if (db/adicionar-exercicio exercicio-info)
+                          (redirect "/")
+                          (pagina-erro "Nao foi possivel salvar o exercicio no DB." 500))))))
+                :else
+                (pagina-erro "Tipo de registro desconhecido." 400))))
 
           (catch Exception e
             (log/error e "HANDLER: Erro GRAVE no /adicionar. Params:" params)
@@ -91,14 +97,12 @@
 
     (GET "/resumo/:dias" [dias]
       (try
-        (let [num-dias (Integer/parseInt dias)]
-          (if (neg? num-dias)
-            (pagina-erro "Numero de dias deve ser positivo." 400)
+        (let [num-dias (parse-int dias)]
+          (if (or (nil? num-dias) (neg? num-dias))
+            (pagina-erro "Numero de dias deve ser um numero inteiro e positivo." 400)
             (html-response (view/pagina-resumo (db/calcular-resumo num-dias)))))
-        (catch NumberFormatException _
-          (pagina-erro "Numero de dias invalido. Use um numero." 400))
         (catch Exception e
           (log/error e "HANDLER: Erro no /resumo/:dias. Dias:" dias)
           (pagina-erro (str "Erro ao gerar resumo: " (.getMessage e)) 500))))
 
-    (route/not-found (pagina-erro "Pagina nao encontrada." 404))))
+    (route/not-found (pagina-erro "Pagina nao encontrada." 404)))
