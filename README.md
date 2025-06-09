@@ -1,82 +1,115 @@
-# Calculadora Metabólica - Projeto de Programação Funcional
+# Calculadora Metabólica
 
-## Sobre o Projeto
+## 1. Descrição do Projeto
 
-Este é o meu projeto para a disciplina de Programação Funcional (T300 - 2025.1). A proposta foi criar uma **Calculadora Metabólica**, uma aplicação web completa desenvolvida em Clojure para permitir o registro e acompanhamento do consumo de alimentos e do gasto de calorias com exercícios físicos.
+O projeto **Calculadora de Calorias** é uma aplicação desenvolvida na linguagem Clojure que permite o monitoramento de consumo e gasto calórico. O objetivo é fornecer uma ferramenta para que usuários possam registrar seus hábitos alimentares e rotinas de exercício, visando um estilo de vida mais saudável.
 
-A aplicação foi construída com um backend em Clojure que lida com toda a lógica de negócio e um frontend simples, também em Clojure com Hiccup, para a interação com o usuário.
+A aplicação foi desenvolvida para cumprir os requisitos da disciplina de Programação Funcional, incluindo o uso de um banco de dados em memória (`atom`), comunicação com APIs externas e uma arquitetura que separa o back-end da interface com o usuário.
 
-## Principais Funcionalidades
+## 2. Arquitetura
 
-O sistema permite que o usuário realize as seguintes ações:
+O sistema segue um modelo cliente-servidor, composto por duas partes independentes que se comunicam via HTTP/JSON:
 
-- **Gerenciar Perfil:** Cadastrar e consultar dados pessoais como nome, peso, altura, idade e sexo.
-- **Registrar Alimentos:** Inserir um alimento consumido e a quantidade em gramas. O sistema se conecta à API da Nutritionix para buscar as calorias e salva o registro.
-- **Registrar Exercícios:** Inserir um exercício realizado e a duração em minutos. A aplicação busca o valor MET (equivalente metabólico) na API de Exercícios da Nutritionix, calcula o gasto calórico com base no peso do usuário e salva o registro.
-- **Tradução Dinâmica:** Para melhorar a experiência, o sistema utiliza a API MyMemory para traduzir os nomes dos alimentos e exercícios (que são buscados em inglês) para o português.
-- **Visualizar Resumo:** Apresenta um resumo simples do saldo calórico dos últimos 7 dias.
+* **Back-end (API):** Um servidor de API desenvolvido com Ring e Compojure. Ele é responsável por toda a lógica de negócio, processamento de dados e gerenciamento do estado da aplicação. Ele não possui interface visual própria.
 
-## Tecnologias
+* **Front-end (Cliente de Terminal):** Uma aplicação de linha de comando que funciona como o cliente da API. É responsável por toda a interação com o usuário, coletando dados e exibindo os resultados obtidos através de requisições ao back-end.
 
-Para construir este projeto, utilizei o seguinte ecossistema:
+## 3. Funcionalidades Principais
 
-- **Linguagem:** Clojure
-- **Servidor Web:** Ring com o adaptador Jetty
-- **Roteamento:** Compojure
-- **Frontend (Views):** Hiccup
-- **Cliente HTTP:** clj-http
-- **Manipulação de JSON:** Cheshire
-- **Gerenciamento do Projeto:** Leiningen
-- **APIs Externas:** Nutritionix (Alimentos e Exercícios) e MyMemory (Tradução)
+* **Gerenciamento de Perfil:** Permite cadastrar e consultar os dados pessoais do usuário (altura, peso, idade e sexo).
+* **Registro de Alimentos:** Registra o consumo de um alimento, com data e quantidade em gramas. As calorias são obtidas através de uma consulta à API externa da Nutritionix.
+* **Registro de Exercícios:** Registra a realização de uma atividade física, com data e duração. O gasto calórico é calculado com base no valor MET, também obtido via API externa (Nutritionix Exercise).
+* **Tradução Dinâmica:** Utiliza um dicionário interno de termos comuns e uma API externa (MyMemory) como fallback para traduzir termos entre português e inglês, facilitando a comunicação com as APIs externas.
+* **Consulta de Dados:** Permite ao usuário consultar o extrato de transações e o saldo final de calorias para um determinado período de datas.
 
-## Como Rodar o Projeto
+## 4. Estrutura do Projeto e Explicação dos Arquivos
 
-Para rodar este projeto na sua máquina, siga os passos abaixo.
+O código do projeto está organizado da seguinte forma:
+
+### Back-end
+
+* **`project.clj`**: Define o projeto, suas dependências (bibliotecas externas) e configurações para o Leiningen.
+* **`src/metab/server.clj`**: Ponto de entrada do servidor. É responsável por iniciar o servidor web (Jetty) e aplicar os middlewares essenciais ao handler da API.
+* **`src/metab/handler.clj`**: O roteador da API. Define todos os endpoints HTTP (ex: `POST /usuario`, `GET /resumo`) e orquestra as chamadas para a lógica de negócio.
+* **`src/metab/db.clj`**: Gerencia o estado da aplicação. Utiliza um `atom` para manter os dados em memória e também salva/carrega o estado de arquivos JSON para persistência.
+* **`src/metab/translations.clj`**: Módulo de serviço que implementa uma tradução híbrida: primeiro consulta um mapa interno de termos confiáveis e, se necessário, recorre à API externa (MyMemory).
+* **`src/metab/food.clj`**: Módulo de serviço para se comunicar com a API da Nutritionix para buscar informações de alimentos.
+* **`src/metab/exercise.clj`**: Módulo de serviço para interagir com a API de Exercícios da Nutritionix para buscar valores MET e calcular o gasto calórico.
+
+### Front-end
+
+* **`src/metab/client.clj`**: Este é o front-end completo da aplicação. É um cliente de linha de comando que exibe um menu para o usuário, coleta dados e faz chamadas HTTP para a API do back-end.
+
+## 5. Fluxo de Uso do Cliente
+
+Ao executar o cliente, um menu com as seguintes opções é exibido:
+
+1.  **Registrar Alimento:** Solicita o nome, a quantidade (g) e a data do alimento. O sistema chama o back-end, que traduz o termo para inglês, busca o melhor resultado na API da Nutritionix e salva o registro com as calorias calculadas.
+
+2.  **Registrar Exercicio:** O usuário informa o nome do exercício, a duração em minutos e a data. O sistema utiliza o peso salvo no perfil, chama o back-end que, por sua vez, usa a API da Nutritionix para obter o valor MET e calcula as calorias gastas antes de salvar.
+
+3.  **Ver Saldo por Periodo:** Solicita uma data de início e uma de fim e exibe um resumo do balanço calórico (consumidas - gastas) para o período especificado.
+
+4.  **Ver Extrato por Periodo:** Solicita um período de datas e retorna uma lista detalhada de todas as transações (alimentos e exercícios) registradas naquelas datas.
+
+5.  **Cadastrar/Atualizar Perfil:** Abre o formulário para o usuário inserir ou atualizar seus dados pessoais.
+
+6.  **Ver Perfil Atual:** Exibe os dados do perfil do usuário que estão salvos no momento.
+
+7.  **Sair:** Encerra a aplicação cliente.
+
+## 6. Tecnologias Utilizadas
+
+* Linguagem Principal: Clojure
+* Servidor Web: Ring & Jetty
+* Roteamento: Compojure
+* Gerenciamento de Estado: Atom
+* Cliente HTTP: clj-http
+* Manipulação de JSON: Cheshire
+* Gerenciamento do Projeto: Leiningen
+* APIs Externas: Nutritionix, MyMemory
+
+## 7. Como Executar o Projeto
+
+A aplicação requer que o servidor e o cliente sejam executados em dois terminais separados.
 
 **Pré-requisitos:**
-* Ter o [Leiningen](https://leiningen.org/) instalado.
-* Ter uma JDK (Java Development Kit) instalada.
+* [Leiningen](https://leiningen.org/) instalado.
+* Java JDK.
 
 **Configuração:**
 
-1.  **Clonar o Repositório**
-    Primeiro, clone o projeto para a sua máquina e entre na pasta criada:
-    ```bash
+1.  **Clonar o Repositório:**
+    ----terminal
     git clone [https://github.com/Moitalante/metab.git](https://github.com/Moitalante/metab.git)
     cd metab
-    ```
+    code .
+    ----
 
-2.  **Configurar Chaves de API**
-    O sistema usa a API da Nutritionix, então você vai precisar das suas próprias chaves.
-    
-    Abra os arquivos `src/metab/food.clj` e `src/metab/exercise.clj` e coloque suas chaves nas seguintes linhas, substituindo os placeholders:
-    ```clojure
-    (def nutritionix-app-id "SUA_CHAVE_NUTRITIONIX_APP_ID_AQUI")
-    (def nutritionix-api-key "SUA_CHAVE_NUTRITIONIX_API_KEY_AQUI")
-    ```
+2.  **Chaves de API:**
+    As chaves da API Nutritionix já estão inseridas no código. Elas estão nos arquivos `src/metab/food.clj` e `src/metab/exercise.clj` com os seguintes valores:
 
-3.  **Instalar as Dependências**
-    Com o Leiningen, este passo é simples. No terminal, dentro da pasta do projeto, rode:
-    ```bash
+    ----clojure
+    (def ^:private nutritionix-app-id "1bcc5746")
+    (def ^:private nutritionix-api-key "40f29da9257857eaccb43a4dd60fd84d")
+    ----
+
+3.  **Instalar as Dependências:**
+    ----terminal
     lein deps
-    ```
+    ----
 
-4.  **Iniciar o Servidor**
-    Finalmente, para iniciar a aplicação:
-    ```bash
-    lein run
-    ```
-    Pronto! O servidor estará rodando em `http://localhost:3000`.
+4.  **Executar a Aplicação:**
 
-## Estrutura do Código
+    * **Terminal 1 (Iniciar o Servidor Back-end):**
+        ----
+        lein run -m metab.server
+        ----
+        O servidor será iniciado na porta 3000. Deixe este terminal rodando.
 
-Para quem for explorar o código, o projeto está organizado da seguinte forma:
-
-- **`project.clj`**: Arquivo de configuração do Leiningen, com todas as dependências do projeto.
-- **`src/metab/core.clj`**: Ponto de entrada da aplicação. Ele configura os middlewares do Ring e inicia o servidor Jetty.
-- **`src/metab/db.clj`**: Lida com o estado da aplicação. Nesta versão, ele gerencia um `atom` em memória que funciona como nosso banco de dados.
-- **`src/metab/view.clj`**: Responsável por todo o HTML. Gera as páginas usando Hiccup.
-- **`src/metab/handler.clj`**: O "coração" da aplicação web. Define as rotas (`/`, `/usuario`, etc.) e orquestra as chamadas para os outros módulos.
-- **`src/metab/translations.clj`**: Contém a lógica para chamar a API MyMemory e fazer as traduções.
-- **`src/metab/food.clj`**: Contém a lógica para buscar os dados nutricionais de alimentos na API da Nutritionix.
-- **`src/metab/exercise.clj`**: Contém a lógica para buscar os METs de exercícios na API da Nutritionix e calcular as calorias gastas.
+    * **Terminal 2 (Iniciar o Cliente Front-end):**
+        Abra um novo terminal, navegue até a mesma pasta do projeto e execute:
+        ----
+        lein cliente
+        ----
+        O menu interativo da aplicação aparecerá neste terminal para você usar.

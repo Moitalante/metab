@@ -5,67 +5,45 @@
             [metab.translations :as t]
             [clojure.tools.logging :as log]))
 
-(def nutritionix-app-id "1bcc5746")
-(def nutritionix-api-key "40f29da9257857eaccb43a4dd60fd84d")
+(def ^:private nutritionix-app-id "1bcc5746")
+(def ^:private nutritionix-api-key "40f29da9257857eaccb43a4dd60fd84d")
+(def ^:private nutritionix-food-api-url "https://trackapi.nutritionix.com/v2/natural/nutrients")
 
 (defn- call-nutritionix-food-api [query-en quantidade-g nome-original-pt]
   (try
     (let [query-nutritionix (str quantidade-g "g " query-en)
           _ (log/info "FOOD: Query para Nutritionix Food API:" query-nutritionix)
-          url "https://trackapi.nutritionix.com/v2/natural/nutrients"
-          headers {"x-app-id" nutritionix-app-id
-                   "x-app-key" nutritionix-api-key
-                   "Content-Type" "application/json"}
+          headers {"x-app-id" nutritionix-app-id, "x-app-key" nutritionix-api-key}
           body-req (json/generate-string {:query query-nutritionix})
-          resp (client/post url {:headers headers :body body-req :as :json :throw-exceptions false
-                                 :conn-timeout 8000 :socket-timeout 15000})
+          resp (client/post nutritionix-food-api-url
+                            {:headers headers, :content-type :json, :body body-req, :as :json,
+                             :throw-exceptions false, :conn-timeout 8000, :socket-timeout 15000})
           status (:status resp)
           body-resp (:body resp)
           food-info (get-in body-resp [:foods 0])]
       (log/debug "FOOD: Resposta Nutritionix Food Status:" status "Body:" (pr-str body-resp))
       (cond
-        (not= status 200)
-        (do (log/error "FOOD: Erro na API Nutritionix Food status" status ":" (pr-str body-resp))
-            {:erro (str "Nutritionix Food status " status)})
-
-        (nil? food-info)
-        (do (log/warn "FOOD: Alimento '" query-nutritionix "' nao encontrado na Nutritionix. Resposta:" (pr-str body-resp))
-            {:erro "Nao encontrado na Nutritionix Food"})
+        (not= status 200) {:erro (str "Nutritionix Food status " status), :detalhes (pr-str body-resp)}
+        (nil? food-info) {:erro "Nao encontrado na Nutritionix Food", :detalhes (pr-str body-resp)}
         :else
-        (let [nome-en-api (get food-info :food_name query-en)
-              kcal_total (get food-info :nf_calories 0.0)
+        (let [kcal_total (get food-info :nf_calories 0.0)
+              nome-en-api (get food-info :food_name query-en)
               trad-en-pt-result (t/traduzir nome-en-api "en" "pt")
-              nome-pt-final (if (:erro trad-en-pt-result)
-                              (do (log/warn "FOOD: Erro ao traduzir EN->PT para" nome-en-api ". Usando nome original PT.")
-                                  nome-original-pt)
-                              (:texto-traduzido trad-en-pt-result))]
+              nome-pt-final (if-let [traduzido (:texto trad-en-pt-result)]
+                              traduzido
+                              (do (log/warn "FOOD: Erro ao traduzir EN->PT para" nome-en-api ". Usando nome original.")
+                                  nome-original-pt))]
           (log/info "FOOD: Detalhes API - " nome-pt-final " (" nome-en-api "), Kcal Total:" kcal_total "para" quantidade-g "g")
-          {:nome_pt nome-pt-final
-           :quantidade_g quantidade-g
-           :kcal_consumidas kcal_total})))
+          {:nome_pt nome-pt-final, :quantidade_g quantidade-g, :kcal_consumidas (float kcal_total)})))
     (catch Exception e
       (log/error e "FOOD: Excecao ao buscar alimento na Nutritionix.")
       {:erro (.getMessage e)})))
 
-
-(defn buscar-info-alimento-nutritionix
-  "Busca info na Nutritionix. Retorna {:nome_pt ..., :kcal_consumidas ...} ou {:erro ...}"
-  [nome-alimento-pt quantidade-g]
-  (log/info "BUSCAR_INFO_ALIMENTO_NUTRITIONIX - Recebido: nome-alimento-pt:" (pr-str nome-alimento-pt) ", quantidade-g:" (pr-str quantidade-g))
-  (if (or (str/blank? (str nome-alimento-pt))
-          (nil? quantidade-g)
-          (not (number? quantidade-g))
-          (not (pos? quantidade-g)))
-    (do (log/error "BUSCAR_INFO_ALIMENTO_NUTRITIONIX: Inputs invalidos.")
-        {:erro "Nome do alimento e quantidade (positiva) sao obrigatorios."
-         :detalhes {:nome-alimento-pt nome-alimento-pt :quantidade-g quantidade-g}})
-    (if (or (str/blank? nutritionix-app-id) (str/blank? nutritionix-api-key)
-            (= "SUA_CHAVE_NUTRITIONIX_APP_ID_AQUI" nutritionix-app-id)
-            (= "SUA_CHAVE_NUTRITIONIX_API_KEY_AQUI" nutritionix-api-key))
-      (do (log/error "FOOD: Chaves da API Nutritionix (alimento) nao configuradas.")
-          {:erro "Chaves API Nutritionix (alimento) nao configuradas."})
-      (let [trad-pt-en-result (t/traduzir nome-alimento-pt "pt" "en")]
-        (if (:erro trad-pt-en-result)
-          (do (log/warn "FOOD: Erro ao traduzir PT->EN para" nome-alimento-pt ":" (:erro trad-pt-en-result) ". Tentando com nome original.")
-              (call-nutritionix-food-api nome-alimento-pt quantidade-g nome-alimento-pt))
-          (call-nutritionix-food-api (:texto-traduzido trad-pt-en-result) quantidade-g nome-alimento-pt))))))
+(defn obter_info_alimento [nome-alimento-pt quantidade-g]
+  (log/info "OBTER_INFO_ALIMENTO: Recebido: nome:" (pr-str nome-alimento-pt) ", qtd:" (pr-str quantidade-g))
+  (if (or (str/blank? (str nome-alimento-pt)) (not (and (number? quantidade-g) (pos? quantidade-g))))
+    {:erro "Nome do alimento e quantidade (positiva) sao obrigatorios."}
+    (let [trad-pt-en-result (t/traduzir nome-alimento-pt "pt" "en")]
+      (if-let [nome-en (:texto trad-pt-en-result)]
+        (call-nutritionix-food-api nome-en quantidade-g nome-alimento-pt)
+        (or (:erro trad-pt-en-result) {:erro "Falha desconhecida na traducao PT->EN"})))))

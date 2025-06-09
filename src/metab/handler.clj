@@ -1,108 +1,57 @@
 (ns metab.handler
   (:require [compojure.core :refer [defroutes GET POST]]
             [compojure.route :as route]
-            [ring.util.response :refer [redirect]]
-            [clojure.string :as str]
-            [metab.view :as view]
+            [ring.util.http-response :as resp]
             [metab.db :as db]
-            [metab.exercise :as exercise]
             [metab.food :as food]
-            [clojure.tools.logging :as log]))
+            [metab.exercise :as exercise]))
 
-(defn html-response [html-body]
-  {:status 200
-   :headers {"Content-Type" "text/html; charset=utf-8"}
-   :body html-body})
+(defn- to-float [x] (try (Float/parseFloat (str x)) (catch Exception _ nil)))
+(defn- to-int [x] (try (Integer/parseInt (str x)) (catch Exception _ nil)))
 
-(defn- pagina-erro [mensagem status-code]
-  {:status status-code
-   :headers {"Content-Type" "text/html; charset=utf-8"}
-   :body (view/pagina-de-erro mensagem)})
+(defn- calcular-kcal-exercicio [met peso-kg duracao-min]
+  (float (* 0.0175 met peso-kg duracao-min)))
 
-(defn- parse-float [s]
-  (let [s-clean (str/trim (str s))]
-    (when-not (str/blank? s-clean)
-      (try (Float/parseFloat s-clean) (catch NumberFormatException _ nil)))))
+(defroutes api-routes
+  (POST "/usuario" {body :body}
+    (let [usuario-data {:nome (:nome body), :peso (to-float (:peso body)),
+                        :altura (to-int (:altura body)), :idade (to-int (:idade body)), :sexo (:sexo body)}]
+      (resp/ok (db/salvar-usuario usuario-data))))
+  (GET "/usuario" [] (resp/ok (db/carregar-usuario)))
 
-(defn- parse-int [s]
-  (let [s-clean (str/trim (str s))]
-    (when-not (str/blank? s-clean)
-      (try (Integer/parseInt s-clean) (catch NumberFormatException _ nil)))))
+  (POST "/alimentos" {body :body}
+    (let [nome (:nome body), quantidade (to-float (:quantidade_g body)), data (:data body)]
+      (if (or (nil? nome) (nil? quantidade) (<= quantidade 0) (nil? data))
+        (resp/bad-request {:erro "Nome, quantidade_g (positiva) e data sao obrigatorios."})
+        (let [info (food/obter_info_alimento nome quantidade)]
+          (if (:erro info)
+            (resp/bad-request info)
+            (resp/created "/alimentos" (db/adicionar-alimento (assoc info :data data))))))))
 
-(defroutes app
-  (GET "/" []
-    (try
-      (let [usuario (db/carregar-usuario)]
-        (html-response (view/pagina-principal usuario)))
-      (catch Exception e
-        (log/error e "HANDLER: EXCECAO NO GET /")
-        (pagina-erro (str "Erro ao carregar pagina principal: " (.getMessage e)) 500))))
-
-  (GET "/usuario" []
-    (html-response (view/pagina-usuario (db/carregar-usuario))))
-
-  (POST "/usuario" {params :params}
-    (log/info "HANDLER: Recebido POST /usuario com params:" params)
-    (let [{:keys [nome peso altura idade sexo]} params
-          usuario-data {:nome   (str/trim (str nome))
-                        :peso   (parse-float peso)
-                        :altura (parse-int altura)
-                        :idade  (parse-int idade)
-                        :sexo   (or sexo "Nao informado")}]
-      (db/salvar-usuario usuario-data)
-      (redirect "/usuario")))
-
-  (POST "/adicionar" {params :params}
-    (log/info "HANDLER: Recebido POST /adicionar com params:" params)
-    (let [{:keys [data tipo nome quantidade peso]} params
+  (POST "/exercicios" {body :body}
+    (let [nome (:nome body), duracao (to-float (:duracao_min body)), data (:data body)
           usuario (db/carregar-usuario)]
+      (if (or (nil? nome) (nil? duracao) (<= duracao 0) (nil? data))
+        (resp/bad-request {:erro "Nome, duracao_min (positiva) e data sao obrigatorios."})
+        (if-let [peso (:peso usuario)]
+          (let [info-exercicio (exercise/obter-info-exercicio nome)]
+            (if (:erro info-exercicio)
+              (resp/bad-request info-exercicio)
+              (let [met (:met info-exercicio)
+                    calorias-gastas (calcular-kcal-exercicio met peso duracao)
+                    exercicio-para-db {:nome_pt (:nome_pt info-exercicio)
+                                       :duracao_min duracao
+                                       :peso_kg peso
+                                       :kcal_gastas calorias-gastas
+                                       :data data}]
+                (resp/created "/exercicios" (db/adicionar-exercicio exercicio-para-db)))))
+          (resp/bad-request {:erro "Peso do usuario nao definido. Cadastre o perfil primeiro."})))))
 
-      (if (or (str/blank? (str data)) (str/blank? (str tipo)) (str/blank? (str nome)) (str/blank? (str quantidade)))
-        (pagina-erro "Data, Tipo, Nome e Quantidade sao obrigatorios." 400)
-        (try
-          (let [qtd (parse-float quantidade)
-                tipo-str (name tipo)
-                nome-str (str/trim (str nome))
-                data-str (str data)]
+  (GET "/extrato" [inicio fim]
+    (let [extrato (db/obter-extrato-por-periodo inicio fim)]
+      (if (:erro extrato) (resp/bad-request extrato) (resp/ok extrato))))
+  (GET "/saldo" [inicio fim]
+    (let [saldo (db/calcular-saldo-por-periodo inicio fim)]
+      (if (:erro saldo) (resp/bad-request saldo) (resp/ok saldo))))
 
-            (if (or (nil? qtd) (not (pos? qtd)))
-              (pagina-erro "A quantidade deve ser um numero positivo." 400)
-
-              (cond
-                (= tipo-str "alimento")
-                (let [alimento-info (food/buscar-info-alimento-nutritionix nome-str qtd)]
-                  (if (:erro alimento-info)
-                    (pagina-erro (str "Erro ao buscar info do alimento: " (:erro alimento-info)) 400)
-                    (let [alimento-para-db (assoc alimento-info :data data-str)]
-                      (if (db/adicionar-alimento alimento-para-db)
-                        (redirect "/")
-                        (pagina-erro "Nao foi possivel salvar o alimento no DB." 500)))))
-
-                (= tipo-str "exercicio")
-                (let [peso-final (or (parse-float peso) (:peso usuario))]
-                  (if (nil? peso-final)
-                    (pagina-erro "Peso do usuario nao definido. Por favor, cadastre seu peso no Perfil." 400)
-                    (let [exercicio-info (exercise/logar-exercicio-e-calcular-kcal nome-str qtd peso-final data-str)]
-                      (if (:erro exercicio-info)
-                        (pagina-erro (str "Erro ao logar exercicio: " (:erro exercicio-info)) 400)
-                        (if (db/adicionar-exercicio exercicio-info)
-                          (redirect "/")
-                          (pagina-erro "Nao foi possivel salvar o exercicio no DB." 500))))))
-                :else
-                (pagina-erro "Tipo de registro desconhecido." 400))))
-
-          (catch Exception e
-            (log/error e "HANDLER: Erro GRAVE no /adicionar. Params:" params)
-            (pagina-erro (str "Ocorreu um erro critico ao processar. Detalhes: " (.getMessage e)) 500)))))
-
-    (GET "/resumo/:dias" [dias]
-      (try
-        (let [num-dias (parse-int dias)]
-          (if (or (nil? num-dias) (neg? num-dias))
-            (pagina-erro "Numero de dias deve ser um numero inteiro e positivo." 400)
-            (html-response (view/pagina-resumo (db/calcular-resumo num-dias)))))
-        (catch Exception e
-          (log/error e "HANDLER: Erro no /resumo/:dias. Dias:" dias)
-          (pagina-erro (str "Erro ao gerar resumo: " (.getMessage e)) 500))))
-
-    (route/not-found (pagina-erro "Pagina nao encontrada." 404)))
+  (route/not-found (resp/not-found {:erro "Endpoint nao encontrado."})))

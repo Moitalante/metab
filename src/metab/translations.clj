@@ -4,44 +4,48 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]))
 
+(def ^:private mapa-traducoes-confiaveis
+  "Mapa para traduções específicas que a API externa erra ou que queremos garantir."
+  {:musculacao "weightlifting" 
+   :feijao "beans"              
+   :peito-de-frango "chicken breast"
+   :maca "apple"
+   :caminhada "walking"
+   :corrida "running"
+   :natacao "swimming"
+   })
+
 (def ^:private mymemory-api-url "https://api.mymemory.translated.net/get")
 
+(defn- traduzir-via-api [texto lang-de lang-para]
+  (log/info "TRADUCAO API: Solicitando '" texto "' de" lang-de "para" lang-para)
+  (try
+    (let [response (client/get mymemory-api-url
+                               {:query-params {"q" texto, "langpair" (str lang-de "|" lang-para)}
+                                :as :json, :throw-exceptions false, :conn-timeout 8000, :socket-timeout 15000})
+          traducao (get-in (:body response) [:responseData :translatedText])]
+      (if (and (= 200 (:status response)) (not (str/blank? traducao)))
+        (let [texto-original-lower (str/lower-case texto)
+              texto-traduzido-lower (str/lower-case traducao)]
+          (if (= texto-original-lower texto-traduzido-lower)
+            {:erro (str "Nenhuma traducao especifica encontrada para '" texto "' na API.")}
+            (do (log/info "TRADUCAO API: Sucesso '" texto "' -> '" traducao "'")
+                {:texto traducao})))
+        (do (log/warn "TRADUCAO API: Falha." (:body response))
+            {:erro "Falha na API de traducao"})))
+    (catch Exception e
+      (log/error e "TRADUCAO API: Excecao.")
+      {:erro (.getMessage e)})))
+
 (defn traduzir
-  "Traduz o texto de um idioma de origem para um idioma de destino usando a MyMemory API.
-   Retorna um mapa com :texto-traduzido em caso de sucesso, ou :erro em caso de falha."
+  "Traduz texto. Primeiro checa o mapa de traduções confiáveis. Se não encontrar, usa a API externa."
   [texto lang-de lang-para]
-  (log/info (str "TRADUCAO: Solicitando traducao de '" texto "' de " lang-de " para " lang-para))
-  (if (str/blank? texto)
-    (do (log/warn "TRADUCAO: Texto para traducao vazio.")
-        {:erro "Texto para traducao nao pode ser vazio."})
-    (try
-      (let [langpair (str lang-de "|" lang-para)
-            response (client/get mymemory-api-url
-                                 {:query-params {"q" texto
-                                                 "langpair" langpair}
-                                  :throw-exceptions false
-                                  :as :json
-                                  :conn-timeout 8000
-                                  :socket-timeout 15000})
-            status (:status response)
-            body (:body response)]
-        (log/debug "TRADUCAO: Resposta da API MyMemory Status:" status "Body:" body)
-        (cond
-          (not= status 200)
-          (do (log/error "TRADUCAO: API MyMemory retornou status" status "Body:" body)
-              {:erro (str "API de Traducao MyMemory retornou status " status) :detalhes body})
-
-          (or (nil? body) (nil? (:responseData body)) (nil? (get-in body [:responseData :translatedText])))
-          (do (log/warn "TRADUCAO: Resposta da API MyMemory inesperada. Body:" body)
-              {:erro "Resposta da API de Traducao MyMemory inesperada ou sem texto traduzido." :detalhes body})
-
-          :else
-          (let [texto-traduzido (get-in body [:responseData :translatedText])]
-            (if (str/blank? texto-traduzido)
-              (do (log/warn "TRADUCAO: API MyMemory retornou texto traduzido vazio. Body:" body)
-                  {:erro "API de Traducao retornou texto traduzido vazio." :detalhes body})
-              (do (log/info "TRADUCAO: '" texto "' -> '" texto-traduzido "'")
-                  {:texto-traduzido texto-traduzido})))))
-      (catch Exception e
-        (log/error e "TRADUCAO: Excecao ao chamar API de Traducao.")
-        {:erro (str "Excecao ao chamar API de Traducao: " (.getMessage e))}))))
+  (if (and (= lang-de "pt") (= lang-para "en"))
+    (let [chave (-> texto str/trim str/lower-case (str/replace #" " "-") keyword)
+          traducao-local (get mapa-traducoes-confiaveis chave)]
+      (if traducao-local
+        (do (log/info "TRADUCAO INTERNA: Usando '" traducao-local "' para '" texto "'")
+            {:texto traducao-local})
+        (do (log/warn "TRADUCAO INTERNA: Nao encontrado para '" texto "'. Usando API...")
+            (traduzir-via-api texto lang-de lang-para))))
+    (traduzir-via-api texto lang-de lang-para)))
