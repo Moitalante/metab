@@ -35,7 +35,7 @@
       (log/error e "AVISO: Falha ao salvar arquivo" path-arquivo)
       false)))
 
-;;Atoms para Estado em Memória, inicializados a partir dos arquivos
+;;Atoms para Estado em Memória
 (defonce alimentos-atom (atom (ler-do-arquivo alimentos-db-path [])))
 (defonce exercicios-atom (atom (ler-do-arquivo exercicios-db-path [])))
 (defonce usuario-atom (atom (ler-do-arquivo usuario-db-path {:nome nil, :peso nil, :altura nil, :idade nil, :sexo nil})))

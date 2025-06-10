@@ -1,0 +1,67 @@
+[ {
+  "nome_pt" : "arroz",
+  "quantidade_g" : 100.0,
+  "kcal_consumidas" : 130.0,
+  "data" : "2025-06-14",
+  "id" : 1749554247564
+}, {
+  "nome_pt" : "manteiga de amendoim",
+  "quantidade_g" : 20.0,
+  "kcal_consumidas" : 117.6,
+  "data" : "2025-06-14",
+  "id" : 1749553334918
+}, {
+  "nome_pt" : "semente de amendoim",
+  "quantidade_g" : 100.0,
+  "kcal_consumidas" : 587.0,
+  "data" : "2025-06-14",
+  "id" : 1749553284586
+}, {
+  "nome_pt" : "manteiga",
+  "quantidade_g" : 120.0,
+  "kcal_consumidas" : 860.4,
+  "data" : "2025-06-14",
+  "id" : 1749553037688
+}, {
+  "nome_pt" : "Doce de leite",
+  "quantidade_g" : 20.0,
+  "kcal_consumidas" : 63.0,
+  "data" : "2025-06-13",
+  "id" : 1749553015075
+}, {
+  "nome_pt" : "abacate",
+  "quantidade_g" : 200.0,
+  "kcal_consumidas" : 320.0,
+  "data" : "2025-06-13",
+  "id" : 1749552976623
+}, {
+  "nome_pt" : "macarrão",
+  "quantidade_g" : 75.0,
+  "kcal_consumidas" : 118.5,
+  "data" : "2025-06-13",
+  "id" : 1749552948924
+}, {
+  "nome_pt" : "feijão",
+  "quantidade_g" : 300.0,
+  "kcal_consumidas" : 282.0,
+  "data" : "2025-06-10",
+  "id" : 1749551927293
+}, {
+  "nome_pt" : "arroz",
+  "quantidade_g" : 200.0,
+  "kcal_consumidas" : 260.0,
+  "data" : "2025-06-10",
+  "id" : 1749551945120
+}, {
+  "nome_pt" : "peito de pombo",
+  "quantidade_g" : 250.0,
+  "kcal_consumidas" : 412.5,
+  "data" : "2025-06-10",
+  "id" : 1749551962175
+}, {
+  "nome_pt" : "arroz pré-cozido",
+  "quantidade_g" : 100.0,
+  "kcal_consumidas" : 123.0,
+  "data" : "2025-06-12",
+  "id" : 1749552108010
+} ]

@@ -1,10 +1,13 @@
+;; src/metab/client.clj
 (ns metab.client
-   (:require [clj-http.client :as client]
-             [cheshire.core :as json]
-             [clojure.pprint :refer [pprint]])
- (:gen-class))
+  (:require [clj-http.client :as client]
+            [cheshire.core :as json]
+            [clojure.pprint :refer [pprint]]
+            [clojure.string :as str]) 
+  (:gen-class))
 
 (def api-base-url "http://localhost:3000")
+
 
 (defn- post-data [endpoint data]
   (try (client/post (str api-base-url endpoint) {:content-type :json, :body (json/generate-string data), :as :json, :throw-exceptions false})
@@ -43,9 +46,9 @@
     (tratar-resposta (post-data "/exercicios" data-map))))
 
 (defn ver-resumo []
-  (println "\n-- Ver Resumo por Periodo --")
+  (println "\n-- Ver Saldo por Periodo --")
   (let [inicio (prompt "Data de Inicio (AAAA-MM-DD):"), fim (prompt "Data de Fim (AAAA-MM-DD):")]
-    (tratar-resposta (get-data "/saldo" {:inicio inicio, :fim fim})))) ; Mudado para /saldo
+    (tratar-resposta (get-data "/saldo" {:inicio inicio, :fim fim}))))
 
 (defn ver-extrato []
   (println "\n-- Ver Extrato por Periodo --")
@@ -63,26 +66,39 @@
   (println "7. Sair")
   (prompt "Escolha uma opcao:"))
 
-(defn -main [& _]
+
+
+(defn- perfil-valido? [usuario]
+  (and (not (str/blank? (:nome usuario)))
+       (some? (:peso usuario))))
+
+(declare ciclo-principal)
+
+(defn verificar-e-configurar-perfil []
   (println "Verificando perfil de usuario no servidor...")
-  (loop [usuario-atual (:body (get-data "/usuario" {}))]
-    (if (and (not (clojure.string/blank? (:nome usuario-atual))) (some? (:peso usuario-atual)))
+  (let [usuario-atual (:body (get-data "/usuario" {}))]
+    (if (perfil-valido? usuario-atual)
       (println "Bem-vindo(a) de volta," (or (:nome usuario-atual) "Usuario") "!")
       (do
         (println "\n*** ATENCAO: Perfil incompleto. Por favor, cadastre seus dados.")
         (registrar-usuario)
-        (recur (:body (get-data "/usuario" {}))))))
+        (verificar-e-configurar-perfil))))) 
 
-  (loop []
-    (let [opcao (exibir-menu)]
-      (condp = opcao
-        "1" (registrar-alimento)
-        "2" (registrar-exercicio)
-        "3" (ver-resumo)
-        "4" (ver-extrato) 
-        "5" (registrar-usuario)
-        "6" (tratar-resposta (get-data "/usuario" {}))
-        "7" (println "Saindo...")
-        (println "Opcao invalida, tente novamente."))
-      (when (not= opcao "7")
-        (recur)))))
+(defn ciclo-principal []
+  (let [opcao (exibir-menu)]
+    (condp = opcao
+      "1" (registrar-alimento)
+      "2" (registrar-exercicio)
+      "3" (ver-resumo)
+      "4" (ver-extrato)
+      "5" (registrar-usuario)
+      "6" (tratar-resposta (get-data "/usuario" {}))
+      "7" (println "Saindo...")
+      (println "Opcao invalida, tente novamente."))
+    (when (not= opcao "7")
+      (ciclo-principal))))
+
+
+(defn -main [& _]
+  (verificar-e-configurar-perfil) 
+  (ciclo-principal))             

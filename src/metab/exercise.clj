@@ -10,7 +10,6 @@
 (def ^:private nutritionix-exercise-api-url "https://trackapi.nutritionix.com/v2/natural/exercise")
 
 (defn- call-nutritionix-for-met [query-ingles]
-  "Chama a API Nutritionix enviando apenas a descrição do exercício para obter o MET."
   (log/info "EXERCISE: Buscando MET na Nutritionix para:" query-ingles)
   (try
     (let [payload {:query query-ingles}

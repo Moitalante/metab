@@ -1,0 +1,29 @@
+[ {
+  "nome_pt" : "walking. ",
+  "duracao_min" : 15.0,
+  "peso_kg" : 77.0,
+  "kcal_gastas" : 70.74375,
+  "data" : "2025-06-14",
+  "id" : 1749554260150
+}, {
+  "nome_pt" : "Levantamento de Peso",
+  "duracao_min" : 60.0,
+  "peso_kg" : 77.0,
+  "kcal_gastas" : 282.975,
+  "data" : "2025-06-10",
+  "id" : 1749551980613
+}, {
+  "nome_pt" : "execução",
+  "duracao_min" : 120.0,
+  "peso_kg" : 77.0,
+  "kcal_gastas" : 1584.66,
+  "data" : "2025-06-11",
+  "id" : 1749552021099
+}, {
+  "nome_pt" : "walking. ",
+  "duracao_min" : 30.0,
+  "peso_kg" : 77.0,
+  "kcal_gastas" : 141.4875,
+  "data" : "2025-06-12",
+  "id" : 1749552050421
+} ]

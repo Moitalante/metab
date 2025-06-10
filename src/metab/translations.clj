@@ -5,10 +5,11 @@
             [clojure.tools.logging :as log]))
 
 (def ^:private mapa-traducoes-confiaveis
-  "Mapa para traduções específicas que a API externa erra ou que queremos garantir."
   {:musculacao "weightlifting" 
    :feijao "beans"              
    :peito-de-frango "chicken breast"
+   :amendoim "peanut"
+   :paste-de-amendoim "peanut butter"
    :maca "apple"
    :caminhada "walking"
    :corrida "running"
